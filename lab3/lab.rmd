@@ -2,7 +2,7 @@
 title: "Lab3"
 author: "Chen Chen 6381370662"
 date: "`r Sys.Date()`"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -59,3 +59,77 @@ summary(met$wind.sp)
 met[met$elev==9999.0] <- NA
 summary(met$elev)
 ```
+ 
+ The weather station with the highest elevation is at `r max(met$elev, na.rm=TRUE) ` meters.
+ 
+Remove temps below -40 Celsius.
+ 
+```{r}
+met <- met[temp>-40][order(temp)]
+```
+ 
+## Step 5. Check the data against an external data source.
+```{r}
+met <- met[temp>-15][order(temp)]
+```
+
+ 
+## Step 6. Compute summary statistics
+```{r}
+met[elev==max(elev, na.rm=TRUE), summary(wind.sp)]
+met[elev==max(elev, na.rm=TRUE), summary(temp)]
+```
+
+```{r}
+met[elev==max(elev, na.rm=TRUE), .(
+  temp_wind    = cor(temp, wind.sp, use="complete"),
+  temp_hour    = cor(temp, hour, use="complete"),
+  wind.sp_day  = cor(wind.sp, day, use="complete"),
+  wind.sp_hour = cor(wind.sp, hour, use="complete")  
+)]
+```
+
+## Step 7. Exploratory Graphs
+
+```{r}
+hist(met$elev, breaks=100)
+```
+```{r}
+hist(met$temp)
+```
+
+```{r}
+hist(met$wind.sp)
+```
+```{r}
+library(leaflet)
+elev <- met[elev==max(elev)]
+```
+
+```{r}
+leaflet(elev) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+```
+
+```{r}
+library(lubridate)
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$date)
+```
+```{r}
+elev <- elev[order(date)]
+head(elev)
+```
+
+
+```{r}
+plot(elev$date, elev$temp, type='l')
+```
+```{r}
+plot(elev$date, elev$wind.sp, type='l')
+```
+
+
+
+
