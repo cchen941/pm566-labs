@@ -19,7 +19,7 @@ library(data.table)
 ## Step 1. Read in the data
 First download and then read in with data.table:fread()
 
-```{r}
+```{r read-data, cache=TRUE}
 if (!file.exists("../lab3/met_all.gz")){
   download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz", "met_all.gz", method="libcurl", timeout = 60)
 }
@@ -30,7 +30,7 @@ met <- data.table::fread("../lab3/met_all.gz")
 ## Step 2. Prep Data
 
 Remove temperatures less than -17C and change elev 9999 to missing value code.
-```{r remove-low-temp}
+```{r remove-low-temp, cache=TRUE}
 met <- met[temp > -17][elev == 9999.0, elev:= NA]
 ```
 
@@ -65,7 +65,7 @@ Compute the mean by station of the variables temp, rh, wind.sp, vis.dist, dew.po
 )]
 ```
 
-```{r}
+```{r check-avg}
 met_avg <- met[ , .(
   temp=mean(temp, na.rm=T),
   rh= mean(rh, na.rm=T),
@@ -78,27 +78,51 @@ met_avg <- met[ , .(
 ), by = "USAFID"]
 ```
 
+Create a region variable for NW, SW, NE, SE based on lon = -98.00 and lat = 39.71 degrees
 ```{r}
-
+met_avg[,region := fifelse(lon >= -98 & lat > 39.71, "NE", 
+               fifelse(lon < -98 & lat >39.71, "NW",
+               fifelse(lon < -98 & lat <= 39.71, "SW","SE")))
+                       ]
+table(met_avg$region)
 ```
 
-
-Create a region variable for NW, SW, NE, SE based on lon = -98.00 and lat = 39.71 degrees
 Create a categorical variable for elevation as in the lecture slides
 
 ```{r}
-
+met_avg[,elev_cat := fifelse(elev > 252, "high", "low")]
 ```
 
-```{r}
-
+## 3. Make Violin plots of dew point temp by region
+```{r violin-dewpoint}
+met_avg[!is.na(region)] %>% 
+  ggplot() + 
+  geom_violin(mapping = aes(x=1,y = dew.point,color=region, fill=region)) + 
+  facet_wrap(~ region, nrow = 1)
 ```
+The highest dew point temperature are reported in the southeast 
 
-```{r}
-
+```{r violin-windsp}
+met_avg[!is.na(region)& !is.na(wind.sp)] %>% 
+  ggplot() + 
+  geom_violin(mapping = aes(x=1,y = wind.sp,color=region, fill=region)) + 
+  facet_wrap(~ region, nrow = 1)
 ```
+Say something about the result.
 
-```{r}
+## 4. Use geom_point with geom_smooth to examine the association between dew point temperature and wind speed by region
+Colour points by region
+Make sure to deal with NA category
+Fit a linear regression line by region
+Describe what you observe in the graph
 
+````{r scatterplot-dewpoint-wind.sp}
+met_avg[!is.na(region)& !is.na(wind.sp)] %>% 
+  ggplot(mapping = aes(x= wind.sp,y=dew.point)) + 
+  geom_point(mapping=aes(color=region)) + 
+  geom_smooth(method = lm, mapping = aes(linetype=region))+
+facet_wrap(~region, nrow=2)
 ```
+Comment on these results.
+
 
