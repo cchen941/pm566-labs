@@ -3,6 +3,7 @@ title: "Lab3"
 author: "Chen Chen 6381370662"
 date: "`r Sys.Date()`"
 output: github_document
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
@@ -129,7 +130,5 @@ plot(elev$date, elev$temp, type='l')
 ```{r}
 plot(elev$date, elev$wind.sp, type='l')
 ```
-
-
 
 
