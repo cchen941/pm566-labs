@@ -370,7 +370,7 @@ pre code {
 </div>
 
 
-<p>Quesion 1. How many paper are on Sars-cov-2</p>
+<p>Question 1. How many paper are on Sars-cov-2</p>
 <pre class="r"><code># Downloading the website
 website &lt;- xml2::read_html(&quot;https://pubmed.ncbi.nlm.nih.gov/?term=sars-cov-2&quot;)
 
@@ -383,6 +383,370 @@ counts &lt;- as.character(counts)
 # Extracting the data using regex
 stringr::str_extract(counts, &quot;[0-9,]+&quot;)</code></pre>
 <pre><code>## [1] &quot;180,785&quot;</code></pre>
+<p>Question 2: Academic publications on COVID19 and Hawaii</p>
+<p>You need to query the following The parameters passed to the query
+are documented here. Use the function httr::GET() to make the following
+query:</p>
+<p>Query parameters:</p>
+<p>db: pubmed term: covid19 hawaii retmax: 1000</p>
+<pre class="r"><code>query_ids &lt;- GET(
+  url   = &quot;https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi&quot;,
+  query = list(
+    db      = &quot;pubmed&quot;,
+    term    =&quot;covid19 hawaii&quot;,
+    retmax  = 1000
+  ), 
+)
+
+# Extracting the content of the response of GET
+ids &lt;- httr::content(query_ids)</code></pre>
+<p>Question 3: Get details about the articles The Ids are wrapped around
+text in the following way: <Id>… id number …</Id>. we can use a regular
+expression that extract that information. Fill out the following lines
+of code:</p>
+<pre class="r"><code># Turn the result into a character vector
+ids &lt;- as.character(ids)
+# Find all the ids 
+ids &lt;- stringr::str_extract_all(ids, &quot;&lt;Id&gt;[[:digit:]]+&lt;/Id&gt;&quot;)[[1]]
+# Remove all the leading and trailing &lt;Id&gt; &lt;/Id&gt;. Make use of &quot;|&quot;
+ids &lt;- stringr::str_remove_all(ids, &quot;&lt;/?Id&gt;&quot;)
+head(ids)</code></pre>
+<pre><code>## [1] &quot;36265162&quot; &quot;36247032&quot; &quot;36227851&quot; &quot;36217024&quot; &quot;36212220&quot; &quot;36186620&quot;</code></pre>
+<p>Grab publications with these Pubmed IDs.</p>
+<pre class="r"><code>publications &lt;- GET(
+  url   = &quot;https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi&quot;,
+  query = list(
+    db  = &quot;pubmed&quot;,
+    id  = paste(ids,collapse = &quot;,&quot;),
+  retmax = 1000,
+  rettype = &quot;abstract&quot;
+    )
+)
+# Extracting the content of the response of GET
+publications &lt;- httr::content(publications)</code></pre>
+<div id="question-5.-form-a-database" class="section level1">
+<h1>Question 5. Form a database</h1>
+<p>We want to build a dataset which includes the title and the abstract
+of the paper. The title of all records is enclosed by the HTML tag
+ArticleTitle, and the abstract by Abstract.</p>
+<p>Before applying the functions to extract text directly, it will help
+to process the XML a bit. We will use the xml2::xml_children() function
+to keep one element per id. This way, if a paper is missing the
+abstract, or something else, we will be able to properly match PUBMED
+IDS with their corresponding records.</p>
+<pre class="r"><code>pub_char_list &lt;- xml2::xml_children(publications)
+pub_char_list &lt;- sapply(pub_char_list, as.character)</code></pre>
+<p>Now, extract the abstract and article title for each one of the
+elements of pub_char_list. You can either use sapply() as we just did,
+or simply take advantage of vectorization of stringr::str_extract</p>
+<pre class="r"><code>abstracts &lt;- str_extract(pub_char_list, &quot;&lt;Abstract&gt;[[:print:][:space:]]+&lt;/Abstract&gt;&quot;)
+abstracts[[1]]</code></pre>
+<pre><code>## [1] &quot;&lt;Abstract&gt;\n        &lt;AbstractText Label=\&quot;BACKGROUND\&quot; NlmCategory=\&quot;BACKGROUND\&quot;&gt;The Covid-19 pandemic had many unprecedented secondary outcomes resulting in various mental health issues leading to substance use coping behaviors. The extent of substance use changes in a US sample by nativity have not been previously described.&lt;/AbstractText&gt;\n        &lt;AbstractText Label=\&quot;OBJECTIVE\&quot; NlmCategory=\&quot;OBJECTIVE\&quot;&gt;Our aim was to design an online survey to assess the social distancing and isolation issues exacerbated by the Covid-19 pandemic to describe substance use as coping behaviors by comparing substance use changes prior to and during the pandemic.&lt;/AbstractText&gt;\n        &lt;AbstractText Label=\&quot;METHODS\&quot; NlmCategory=\&quot;METHODS\&quot;&gt;A comprehensive 116-item survey to understand the impact of Covid-19 and social distancing on physical and psychosocial mental health and chronic diseases was designed. Approximately 10,000 online surveys were distributed by Qualtrics LLC between 13 May 2021 and 09 January 2022 across the US (i.e., continental US, Hawaii, Alaska, and territories) to adults 18 and older. We oversampled low income and rural adults among non-Hispanic White, non-Hispanic Black, Hispanic/Latino adults, and foreign-born participants. Of the 5,938 surveys returned, 5,413 surveys were used after Qualtrics proprietary expert review fraud detection, and detailed assessments of completion rate and timing to complete the survey. Participant demographics, substance use coping behaviors, and substance use prior to and during the pandemic are described by the overall US resident sample, followed by US born and foreign-born self-report. Substance use included tobacco use, e-cigarettes/vaping, alcohol use, marijuana use, and other illicit substance use. Marginal homogeneity based on Stuart-Maxwell test was used to assess changes in self-reported substance use prior to and during the pandemic.&lt;/AbstractText&gt;\n        &lt;AbstractText Label=\&quot;RESULTS\&quot; NlmCategory=\&quot;RESULTS\&quot;&gt;The sample was mostly White (2182/5413, 40.3%), women (3369/5406, 62.3%) that identified as straight/heterosexual (4805/5406, 89.3%), reported making ≥$75,000 (1405/5355, 26.2%) and had vocational/technical training (1746/5404, 32.3%). Significant changes were found in alcohol use self-reports the overall sample. Significant changes were also observed among US born and foreign-born samples. Similarities were observed between US born and foreign-born participants on increased alcohol use from: (1) no alcohol use prior to the pandemic to using alcohol once to several times a month; and (2) once to several times per week to everyday to several times per day. While significant changes were observed from no prior alcohol use to some level of increased use, the inverse was observed as well and more pronounced among foreign-born participants. That is, there was a 5.1% overall change in some level of alcohol use prior to the pandemic to no alcohol use during the pandemic among foreign born, compared to the 4.3% change among US born.&lt;/AbstractText&gt;\n        &lt;AbstractText Label=\&quot;CONCLUSIONS\&quot; NlmCategory=\&quot;CONCLUSIONS\&quot;&gt;To better prepare for the inadvertent effects of public health policies meant to protect individuals, we must understand the mental health burdens that can precipitate into substance use coping mechanisms that not only have a deleterious effect on physical and mental health but exacerbate morbidity and mortality to disease like Covid-19.&lt;/AbstractText&gt;\n        &lt;AbstractText Label=\&quot;CLINICALTRIAL\&quot; NlmCategory=\&quot;BACKGROUND\&quot;/&gt;\n      &lt;/Abstract&gt;&quot;</code></pre>
+<pre class="r"><code>abstracts &lt;- str_remove_all(abstracts, &quot;&lt;/?[[:alnum:]- =\&quot;]+&gt;&quot;) 
+abstracts[[1]]</code></pre>
+<pre><code>## [1] &quot;\n        The Covid-19 pandemic had many unprecedented secondary outcomes resulting in various mental health issues leading to substance use coping behaviors. The extent of substance use changes in a US sample by nativity have not been previously described.\n        Our aim was to design an online survey to assess the social distancing and isolation issues exacerbated by the Covid-19 pandemic to describe substance use as coping behaviors by comparing substance use changes prior to and during the pandemic.\n        A comprehensive 116-item survey to understand the impact of Covid-19 and social distancing on physical and psychosocial mental health and chronic diseases was designed. Approximately 10,000 online surveys were distributed by Qualtrics LLC between 13 May 2021 and 09 January 2022 across the US (i.e., continental US, Hawaii, Alaska, and territories) to adults 18 and older. We oversampled low income and rural adults among non-Hispanic White, non-Hispanic Black, Hispanic/Latino adults, and foreign-born participants. Of the 5,938 surveys returned, 5,413 surveys were used after Qualtrics proprietary expert review fraud detection, and detailed assessments of completion rate and timing to complete the survey. Participant demographics, substance use coping behaviors, and substance use prior to and during the pandemic are described by the overall US resident sample, followed by US born and foreign-born self-report. Substance use included tobacco use, e-cigarettes/vaping, alcohol use, marijuana use, and other illicit substance use. Marginal homogeneity based on Stuart-Maxwell test was used to assess changes in self-reported substance use prior to and during the pandemic.\n        The sample was mostly White (2182/5413, 40.3%), women (3369/5406, 62.3%) that identified as straight/heterosexual (4805/5406, 89.3%), reported making ≥$75,000 (1405/5355, 26.2%) and had vocational/technical training (1746/5404, 32.3%). Significant changes were found in alcohol use self-reports the overall sample. Significant changes were also observed among US born and foreign-born samples. Similarities were observed between US born and foreign-born participants on increased alcohol use from: (1) no alcohol use prior to the pandemic to using alcohol once to several times a month; and (2) once to several times per week to everyday to several times per day. While significant changes were observed from no prior alcohol use to some level of increased use, the inverse was observed as well and more pronounced among foreign-born participants. That is, there was a 5.1% overall change in some level of alcohol use prior to the pandemic to no alcohol use during the pandemic among foreign born, compared to the 4.3% change among US born.\n        To better prepare for the inadvertent effects of public health policies meant to protect individuals, we must understand the mental health burdens that can precipitate into substance use coping mechanisms that not only have a deleterious effect on physical and mental health but exacerbate morbidity and mortality to disease like Covid-19.\n        &lt;AbstractText Label=\&quot;CLINICALTRIAL\&quot; NlmCategory=\&quot;BACKGROUND\&quot;/&gt;\n      &quot;</code></pre>
+<pre class="r"><code>abstracts &lt;- str_replace_all(abstracts, &quot;[[:space:]]+&quot;,&quot; &quot;)
+abstracts[[1]]</code></pre>
+<pre><code>## [1] &quot; The Covid-19 pandemic had many unprecedented secondary outcomes resulting in various mental health issues leading to substance use coping behaviors. The extent of substance use changes in a US sample by nativity have not been previously described. Our aim was to design an online survey to assess the social distancing and isolation issues exacerbated by the Covid-19 pandemic to describe substance use as coping behaviors by comparing substance use changes prior to and during the pandemic. A comprehensive 116-item survey to understand the impact of Covid-19 and social distancing on physical and psychosocial mental health and chronic diseases was designed. Approximately 10,000 online surveys were distributed by Qualtrics LLC between 13 May 2021 and 09 January 2022 across the US (i.e., continental US, Hawaii, Alaska, and territories) to adults 18 and older. We oversampled low income and rural adults among non-Hispanic White, non-Hispanic Black, Hispanic/Latino adults, and foreign-born participants. Of the 5,938 surveys returned, 5,413 surveys were used after Qualtrics proprietary expert review fraud detection, and detailed assessments of completion rate and timing to complete the survey. Participant demographics, substance use coping behaviors, and substance use prior to and during the pandemic are described by the overall US resident sample, followed by US born and foreign-born self-report. Substance use included tobacco use, e-cigarettes/vaping, alcohol use, marijuana use, and other illicit substance use. Marginal homogeneity based on Stuart-Maxwell test was used to assess changes in self-reported substance use prior to and during the pandemic. The sample was mostly White (2182/5413, 40.3%), women (3369/5406, 62.3%) that identified as straight/heterosexual (4805/5406, 89.3%), reported making ≥$75,000 (1405/5355, 26.2%) and had vocational/technical training (1746/5404, 32.3%). Significant changes were found in alcohol use self-reports the overall sample. Significant changes were also observed among US born and foreign-born samples. Similarities were observed between US born and foreign-born participants on increased alcohol use from: (1) no alcohol use prior to the pandemic to using alcohol once to several times a month; and (2) once to several times per week to everyday to several times per day. While significant changes were observed from no prior alcohol use to some level of increased use, the inverse was observed as well and more pronounced among foreign-born participants. That is, there was a 5.1% overall change in some level of alcohol use prior to the pandemic to no alcohol use during the pandemic among foreign born, compared to the 4.3% change among US born. To better prepare for the inadvertent effects of public health policies meant to protect individuals, we must understand the mental health burdens that can precipitate into substance use coping mechanisms that not only have a deleterious effect on physical and mental health but exacerbate morbidity and mortality to disease like Covid-19. &lt;AbstractText Label=\&quot;CLINICALTRIAL\&quot; NlmCategory=\&quot;BACKGROUND\&quot;/&gt; &quot;</code></pre>
+<p>Now get the titles:</p>
+<pre class="r"><code>titles &lt;- str_extract(pub_char_list, &quot;&lt;ArticleTitle&gt;[[:print:][:space:]]+&lt;/ArticleTitle&gt;&quot;)
+titles[[1]]</code></pre>
+<pre><code>## [1] &quot;&lt;ArticleTitle&gt;Substance Use From Social Distancing and Isolation By US Nativity During the Time of Covid-19: Cross-Sectional Study.&lt;/ArticleTitle&gt;&quot;</code></pre>
+<pre class="r"><code>titles &lt;- str_remove_all(titles, &quot;&lt;/?[[:alnum:]- =\&quot;]+&gt;&quot;)
+titles[[1]]</code></pre>
+<pre><code>## [1] &quot;Substance Use From Social Distancing and Isolation By US Nativity During the Time of Covid-19: Cross-Sectional Study.&quot;</code></pre>
+<p>Finally the dataset:</p>
+<pre class="r"><code>database &lt;- data.frame(
+  PubMedId = ids,
+  Title    = titles,
+  Abstract = abstracts
+)
+knitr::kable(database[1:8,], caption = &quot;Some papers about Covid19 and Hawaii&quot;)</code></pre>
+<table>
+<caption>Some papers about Covid19 and Hawaii</caption>
+<colgroup>
+<col width="0%" />
+<col width="4%" />
+<col width="95%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">PubMedId</th>
+<th align="left">Title</th>
+<th align="left">Abstract</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">36265162</td>
+<td align="left">Substance Use From Social Distancing and Isolation By
+US Nativity During the Time of Covid-19: Cross-Sectional Study.</td>
+<td align="left">The Covid-19 pandemic had many unprecedented secondary
+outcomes resulting in various mental health issues leading to substance
+use coping behaviors. The extent of substance use changes in a US sample
+by nativity have not been previously described. Our aim was to design an
+online survey to assess the social distancing and isolation issues
+exacerbated by the Covid-19 pandemic to describe substance use as coping
+behaviors by comparing substance use changes prior to and during the
+pandemic. A comprehensive 116-item survey to understand the impact of
+Covid-19 and social distancing on physical and psychosocial mental
+health and chronic diseases was designed. Approximately 10,000 online
+surveys were distributed by Qualtrics LLC between 13 May 2021 and 09
+January 2022 across the US (i.e., continental US, Hawaii, Alaska, and
+territories) to adults 18 and older. We oversampled low income and rural
+adults among non-Hispanic White, non-Hispanic Black, Hispanic/Latino
+adults, and foreign-born participants. Of the 5,938 surveys returned,
+5,413 surveys were used after Qualtrics proprietary expert review fraud
+detection, and detailed assessments of completion rate and timing to
+complete the survey. Participant demographics, substance use coping
+behaviors, and substance use prior to and during the pandemic are
+described by the overall US resident sample, followed by US born and
+foreign-born self-report. Substance use included tobacco use,
+e-cigarettes/vaping, alcohol use, marijuana use, and other illicit
+substance use. Marginal homogeneity based on Stuart-Maxwell test was
+used to assess changes in self-reported substance use prior to and
+during the pandemic. The sample was mostly White (2182/5413, 40.3%),
+women (3369/5406, 62.3%) that identified as straight/heterosexual
+(4805/5406, 89.3%), reported making ≥$75,000 (1405/5355, 26.2%) and had
+vocational/technical training (1746/5404, 32.3%). Significant changes
+were found in alcohol use self-reports the overall sample. Significant
+changes were also observed among US born and foreign-born samples.
+Similarities were observed between US born and foreign-born participants
+on increased alcohol use from: (1) no alcohol use prior to the pandemic
+to using alcohol once to several times a month; and (2) once to several
+times per week to everyday to several times per day. While significant
+changes were observed from no prior alcohol use to some level of
+increased use, the inverse was observed as well and more pronounced
+among foreign-born participants. That is, there was a 5.1% overall
+change in some level of alcohol use prior to the pandemic to no alcohol
+use during the pandemic among foreign born, compared to the 4.3% change
+among US born. To better prepare for the inadvertent effects of public
+health policies meant to protect individuals, we must understand the
+mental health burdens that can precipitate into substance use coping
+mechanisms that not only have a deleterious effect on physical and
+mental health but exacerbate morbidity and mortality to disease like
+Covid-19.
+<AbstractText Label="CLINICALTRIAL" NlmCategory="BACKGROUND"></AbstractText></td>
+</tr>
+<tr class="even">
+<td align="left">36247032</td>
+<td align="left">COVID-19 Restriction Movement Control Order (MCO)
+Impacted Emissions of Peninsular Malaysia Using Sentinel-2a and
+Sentinel-5p Satellite.</td>
+<td align="left">The unprecedented outbreak of Coronavirus Disease 2019
+(COVID-19) has impacted the whole world in every aspect including
+health, social life, economic activity, education, and the environment.
+The pandemic has led to an improvement in air quality all around the
+world, including in Malaysia. Lockdowns have resulted in industry
+shutting down and road travel decreasing which can reduce the emission
+of Greenhouse Gases (GHG) and air pollution. This research assesses the
+impact of the COVID-19 lockdown on emissions using the Air Pollution
+Index (API), aerosols, and GHG which is Nitrogen Dioxide (NO2) in
+Malaysia. The data used is from Sentinel-5p and Sentinel-2A which
+monitor the air quality based on Ozone (O3) and NO2 concentration. Using
+an interpolated API Index Map comparing 2019, before the implementation
+of a Movement Control Order (MCO), and 2020, after the MCO period we
+examine the impact on pollution during and after the COVID-19 lockdown.
+Data used Sentinel-5p, Sentinel-2A, and Air Pollution Index of Malaysia
+(APIMS) to monitor the air quality that contains NO2 concentration. The
+result has shown the recovery in air quality during the MCO
+implementation which indirectly shows anthropogenic activities towards
+the environmental condition. The study will help to enhance and support
+the policy and scope for air pollution management strategies as well as
+raise public awareness of the main causes that contribute to air
+pollution. © King Abdulaziz University and Springer Nature Switzerland
+AG 2022, Springer Nature or its licensor holds exclusive rights to this
+article under a publishing agreement with the author(s) or other
+rightsholder(s); author self-archiving of the accepted manuscript
+version of this article is solely governed by the terms of such
+publishing agreement and applicable law.</td>
+</tr>
+<tr class="odd">
+<td align="left">36227851</td>
+<td align="left">Forgone Health Care for Non-COVID-19-Related Needs
+Among Medicare Beneficiaries During the COVID-19 Pandemic, Summer
+2020-Winter 2021.</td>
+<td align="left">Forgone health care, defined as not using health care
+despite perceiving a need for it, is associated with poor health
+outcomes, especially among people with chronic conditions. The objective
+of our study was to examine how the pandemic affected forgone health
+care during 3 stages of the pandemic. We used the Medicare Current
+Beneficiary Survey COVID-19 Rapid Response Questionnaire administered in
+summer 2020, fall 2020, and winter 2021 to examine sociodemographic
+characteristics, chronic diseases, COVID-19 vaccination status, and
+telehealth availability in relation to beneficiary reports of forgone
+health care. Of the 3 periods studied, the overall rate of forgone
+health care was highest in summer 2020 (20.8%), followed by fall 2020
+(7.8%) and winter 2021 (6.5%). COVID-19 vaccination status, age, sex,
+race and ethnicity, US region, availability of primary care telehealth
+appointments, and chronic conditions (heart disease, arthritis,
+depression, osteoporosis or a broken hip, and diabetes or high blood
+glucose) were significantly related to forgone care. High rates of
+forgone care among Medicare participants varied over time and were
+significantly related to beneficiary characteristics. Our findings
+highlight the need for health care reform and changes in policy to
+address the issue of access to care for people with chronic conditions
+during a pandemic or other public health emergency.</td>
+</tr>
+<tr class="even">
+<td align="left">36217024</td>
+<td align="left">Dynamic SARS-CoV-2 emergence algorithm for
+rationally-designed logical next-generation vaccines.</td>
+<td align="left">SARS-CoV-2 worldwide spread and evolution has resulted
+in variants containing mutations resulting in immune evasive epitopes
+that decrease vaccine efficacy. We acquired SARS-CoV-2 positive clinical
+samples and compared the worldwide emerged spike mutations from Variants
+of Concern/Interest, and developed an algorithm for monitoring the
+evolution of SARS-CoV-2 in the context of vaccines and monoclonal
+antibodies. The algorithm partitions logarithmic-transformed prevalence
+data monthly and Pearson’s correlation determines exponential emergence
+of amino acid substitutions (AAS) and lineages. The SARS-CoV-2 genome
+evaluation indicated 49 mutations, with 44 resulting in AAS. Nine of the
+ten most worldwide prevalent (&gt;70%) spike protein changes have
+Pearson’s coefficient r &gt; 0.9. The tenth, D614G, has a prevalence
+&gt;99% and r-value of 0.67. The resulting algorithm is based on the
+patterns these ten substitutions elucidated. The strong positive
+correlation of the emerged spike protein changes and algorithmic
+predictive value can be harnessed in designing vaccines with relevant
+immunogenic epitopes. Monitoring, next-generation vaccine design, and
+mAb clinical efficacy must keep up with SARS-CoV-2 evolution, as the
+virus is predicted to remain endemic. © 2022. The Author(s).</td>
+</tr>
+<tr class="odd">
+<td align="left">36212220</td>
+<td align="left">Trends of International Electives in Medical Education
+Undergraduates in Japan.</td>
+<td align="left">Increasing numbers of medical students participate in
+international electives. However, this recent trend has yet to be
+examined in non-Western high-income countries such as Japan. The aim of
+this study is to assess recent trends in Japan, and to suggest ways in
+which those trends might be influenced. A retrospective cross-sectional
+analysis of responses to an 8-item questionnaire sent in August 2019 to
+82 medical schools in Japan is reported. The responses were received in
+September 2019. Narrative responses were obtained regarding rationales
+for exchange programs, participant feedback, and challenges encountered.
+Responses were translated into English and categorized into themes. Of
+82 Japanese medical schools, 56 (68%) responded to the questionnaire.
+Both the number of incoming and outgoing exchange students had increased
+steadily over the preceding 3-year period. The leading destinations for
+Japanese students were the United States (30%), other Asian (36%), and
+European countries (24%). Narrative responses reveal different
+rationales from those reported by medical schools in Western high-income
+countries. Only a few Japanese students chose low or middle-income
+countries as their destinations, as opposed to the trend seen in Western
+high-income countries. The reported challenges encountered by the
+exchange programs may provide insights for improvement. Exchanges have
+been greatly affected by the coronavirus disease 2019 pandemic. The
+results can serve as pre-pandemic baseline data and should promote
+further international collaboration for medical education under current
+circumstances. ©Copyright 2022 by University Health Partners of Hawai‘i
+(UHP Hawai‘i).</td>
+</tr>
+<tr class="even">
+<td align="left">36186620</td>
+<td align="left">Racial/Ethnic Disparities in Getting COVID-19 Vaccine:
+Do Age, Gender, and Education Matter?</td>
+<td align="left">COVID-19 disproportionately affects racial/ethnic
+minorities and vaccine can help mitigate infection and transition,
+decrease rate of hospitalization, lower mortality rate, and control the
+pandemic. This study aims to examine disparities in COVID-19 vaccination
+rate by age among Whites, Hispanics, Blacks, and Asian Americans, and
+the modification effects by gender and education. We used seven waves of
+biweekly surveys from the Household Pulse Survey collected between July
+21, 2021, and October 11, 2021. Asians reported the highest, Blacks
+reported the lowest vaccination rate, and gender differences were
+minimal. Increasing age was associated with higher vaccination rate
+except for the oldest age group. The decline was from 84.4% (70-79
+years) to 41.1% (80-88 years: 41.1%) among Hispanics and 92.8% to 69.6%
+among Asians. Educational effect was the most salient among younger
+adults with the largest gaps observed in Blacks. Among 18-29-year Black
+participants, the vaccination rates were 31.1% (confidence interval [95%
+CI]: 25.7-37.1) for high school or lower, 58.9% (95% CI: 54.2-63.5) for
+some college or associate degree, and 74.2% (95% CI: 69.4-78.5) for
+bachelor or higher degrees, leaving a 43.1% gap between the lowest and
+the highest education levels. The gaps in this age group were 33.7%
+among Whites, 32.1% among Hispanics, and 20.5% among Asian Americans.
+Our study advances the existing literature on COVID-19 vaccination by
+providing empirical evidence on the dynamic race/ethnic-age-education
+differences across racial/ethnic groups. The findings from our study
+provide scientific foundation for the development of more strategies to
+improve vaccination rate for the minority populations. © Wei Zhang et
+al., 2022; Published by Mary Ann Liebert, Inc.</td>
+</tr>
+<tr class="odd">
+<td align="left">36173983</td>
+<td align="left">Hydroxychloroquine/chloroquine for the treatment of
+hospitalized patients with COVID-19: An individual participant data
+meta-analysis.</td>
+<td align="left">Results from observational studies and randomized
+clinical trials (RCTs) have led to the consensus that hydroxychloroquine
+(HCQ) and chloroquine (CQ) are not effective for COVID-19 prevention or
+treatment. Pooling individual participant data, including unanalyzed
+data from trials terminated early, enables more detailed investigation
+of the efficacy and safety of HCQ/CQ among subgroups of hospitalized
+patients. We searched ClinicalTrials.gov in May and June 2020 for
+US-based RCTs evaluating HCQ/CQ in hospitalized COVID-19 patients in
+which the outcomes defined in this study were recorded or could be
+extrapolated. The primary outcome was a 7-point ordinal scale measured
+between day 28 and 35 post enrollment; comparisons used proportional
+odds ratios. Harmonized de-identified data were collected via a common
+template spreadsheet sent to each principal investigator. The data were
+analyzed by fitting a prespecified Bayesian ordinal regression model and
+standardizing the resulting predictions. Eight of 19 trials met
+eligibility criteria and agreed to participate. Patient-level data were
+available from 770 participants (412 HCQ/CQ vs 358 control). Baseline
+characteristics were similar between groups. We did not find evidence of
+a difference in COVID-19 ordinal scores between days 28 and 35
+post-enrollment in the pooled patient population (odds ratio, 0.97; 95%
+credible interval, 0.76-1.24; higher favors HCQ/CQ), and found no
+convincing evidence of meaningful treatment effect heterogeneity among
+prespecified subgroups. Adverse event and serious adverse event rates
+were numerically higher with HCQ/CQ vs control (0.39 vs 0.29 and 0.13 vs
+0.09 per patient, respectively). The findings of this individual
+participant data meta-analysis reinforce those of individual RCTs that
+HCQ/CQ is not efficacious for treatment of COVID-19 in hospitalized
+patients.</td>
+</tr>
+<tr class="even">
+<td align="left">36146513</td>
+<td align="left">Dynamics of Trust and Consumption of COVID-19
+Information Implicate a Mechanism for COVID-19 Vaccine and Booster
+Uptake.</td>
+<td align="left">Vaccine hesitancy remains a significant barrier to
+achieving herd immunity and preventing the further spread of COVID-19.
+Understanding contributors to vaccine hesitancy and how they change over
+time may improve COVID-19 mitigation strategies and public health
+policies. To date, no mechanism explains how trust in and consumption of
+different sources of information affect vaccine uptake. A total of 1594
+adults enrolled in our COVID-19 testing program completed standardized
+surveys on demographics, vaccination status, use, reliance, and trust in
+sources of COVID-19 information, from September to October 2021, during
+the COVID-19 Delta wave. Of those, 802 individuals (50.3%) completed a
+follow-up survey, from January to February 2022, during the
+Omicron-wave. Regression analyses were performed to understand
+contributors to vaccine and booster uptake over time. Individuals
+vaccinated within two months of eligibility (early vaccinees) tended to
+have more years of schooling, with greater trust in and consumption of
+official sources of COVID-19 information, compared to those who waited
+3-6 months (late vaccinees), or those who remained unvaccinated at 6
+months post-eligibility (non-vaccinees). Most (70.1%) early vaccinees
+took the booster shot, compared to only 30.5% of late vaccinees, with
+the latter group gaining trust and consumption of official information
+after four months. These data provide the foundation for a mechanism
+based on the level of trust in and consumption of official information
+sources, where those who increased their level of trust in and
+consumption of official information sources were more likely to receive
+a booster. This study shows that social factors, including education and
+individual-level degree of trust in (and consumption of) sources of
+COVID-19 information, interact and change over time to be associated
+with vaccine and booster uptakes. These results are critical for the
+development of effective public health policies and offer insights into
+hesitancy over the course of the COVID-19 vaccine and booster
+rollout.</td>
+</tr>
+</tbody>
+</table>
+</div>
 
 
 
