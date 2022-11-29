@@ -10,8 +10,7 @@ always_allow_html: true
 
 **HTML Report:**[**click here**](https://rawcdn.githack.com/cchen941/pm566-labs/4c279c0919d8b46a08bdeecf9c8841a256e547af/lab11/11-lab.html)
 
-qqqw
-**And remember to set `eval=TRUE`*qwfgq/
+**And remember to set `eval=TRUE`**
 ```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
 library(data.table)
 library(tidyverse)
@@ -166,7 +165,7 @@ for (i in 1:length(state_list)) {
 }
 
 # Focus on recent dates
-cv_states <- cv_states %>% dplyr::filter(date >= "2021-06-01")
+cv_states <- cv_states %>% dplyr::filter(date >= "2022-06-01")
 
 
 ### FINISH THE CODE HERE
@@ -335,13 +334,13 @@ Create a heatmap to visualize `new_cases` for each state on each date greater th
 - Repeat with `newper100k` variable. Now which states stand out? 
 - Create a second heatmap in which the pattern of `new_cases` for each state over time becomes more clear by filtering to only look at dates every two weeks 
 
-```{r, eval=FALSE}
+```{r}
 
 ### FINISH CODE HERE
 # Map state, date, and new_cases to a matrix
 library(tidyr)
-cv_states_mat <- cv_states %>% select(state, date, new_cases) %>% dplyr::filter(date>as.Date("2021-06-15"))
-cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from = ________))
+cv_states_mat <- cv_states %>% select(state, date, new_cases) %>% dplyr::filter(date>as.Date("2022-06-15"))
+cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from = new_cases))
 rownames(cv_states_mat2) <- cv_states_mat2$date
 cv_states_mat2$date <- NULL
 cv_states_mat2 <- as.matrix(cv_states_mat2)
@@ -353,8 +352,8 @@ plot_ly(x=colnames(cv_states_mat2), y=rownames(cv_states_mat2),
              showscale=T)
 
 # Repeat with newper100k
-cv_states_mat <- cv_states %>% select(state, date, newper100k) %>% dplyr::filter(date>as.Date("2021-06-15"))
-cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from = ________))
+cv_states_mat <- cv_states %>% select(state, date, newper100k) %>% dplyr::filter(date>as.Date("2022-06-15"))
+cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from = newper100k))
 rownames(cv_states_mat2) <- cv_states_mat2$date
 cv_states_mat2$date <- NULL
 cv_states_mat2 <- as.matrix(cv_states_mat2)
@@ -364,11 +363,11 @@ plot_ly(x=colnames(cv_states_mat2), y=rownames(cv_states_mat2),
              type="heatmap",
              showscale=T)
 
-# Create a second heatmap after filtering to only include dates every other week
-filter_dates <- seq(as.Date("2021-06-15"), as.Date("2021-11-01"), by=________)
+# Create a second heat map after filtering to only include dates every other week
+filter_dates <- seq(as.Date("2022-06-15"), as.Date("2022-11-01"), by="2 weeks")
 
 cv_states_mat <- cv_states %>% select(state, date, newper100k) %>% filter(date %in% filter_dates)
-cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from = ________))
+cv_states_mat2 <- as.data.frame(pivot_wider(cv_states_mat, names_from = state, values_from =newper100k))
 rownames(cv_states_mat2) <- cv_states_mat2$date
 cv_states_mat2$date <- NULL
 cv_states_mat2 <- as.matrix(cv_states_mat2)
@@ -387,11 +386,11 @@ plot_ly(x=colnames(cv_states_mat2), y=rownames(cv_states_mat2),
 - Plot the two maps together using `subplot()`. Make sure the shading is for the same range of values (google is your friend for this)
 - Describe the difference in the pattern of the CFR.
 
-```{r eval=FALSE}
+```{r}
 
 ### For specified date
 
-pick.date = "2021-10-15"
+pick.date = "2022-10-15"
 
 # Extract the data for each state by its abbreviation
 cv_per100 <- cv_states %>% filter(date==pick.date) %>% select(state, abb, newper100k, cases, deaths) # select data
@@ -400,7 +399,11 @@ cv_per100$state <- cv_per100$abb
 cv_per100$abb <- NULL
 
 # Create hover text
-cv_per100$hover <- with(cv_per100, paste(state_name, '<br>', "Cases per 100k: ", newper100k, '<br>', "Cases: ", cases, '<br>', "Deaths: ", deaths))
+cv_per100$hover <- with(cv_per100, 
+                        paste(state_name, '<br>', 
+                              "Cases per 100k: ", newper100k, '<br>', 
+                              "Cases: ", cases, '<br>', 
+                              "Deaths: ", deaths))
 
 # Set up mapping details
 set_map_details <- list(
@@ -411,15 +414,19 @@ set_map_details <- list(
 )
 
 # Make sure both maps are on the same color scale
-shadeLimit <- 125
+shadeLimit <- 30
 
 # Create the map
 fig <- plot_geo(cv_per100, locationmode = 'USA-states') %>% 
   add_trace(
-    z = ~newper100k, text = ~hover, locations = ~state,
-    color = ~newper100k, colors = 'Purples'
+    z = ~newper100k, 
+    text = ~hover, 
+    locations = ~state,
+    color = ~newper100k, 
+    colors = 'Purples'
   )
-fig <- fig %>% colorbar(title = paste0("Cases per 100k: ", pick.date), limits = c(0,shadeLimit))
+fig <- fig %>% 
+  colorbar(title = paste0("Cases per 100k: ", pick.date), limits = c(0,shadeLimit))
 fig <- fig %>% layout(
     title = paste('Cases per 100k by State as of ', pick.date, '<br>(Hover for value)'),
     geo = set_map_details
@@ -449,10 +456,14 @@ set_map_details <- list(
 # Create the map
 fig <- plot_geo(cv_per100, locationmode = 'USA-states') %>% 
   add_trace(
-    z = ~newper100k, text = ~hover, locations = ~state,
-    color = ~newper100k, colors = 'Purples'
+    z = ~newper100k, 
+    text = ~hover, 
+    locations = ~state,
+    color = ~newper100k, 
+    colors = 'Purples'
   )
-fig <- fig %>% colorbar(title = paste0("Cases per 100k: ", Sys.Date()), limits = c(0,shadeLimit))
+fig <- fig %>% 
+  colorbar(title = paste0("Cases per 100k: ", Sys.Date()), limits = c(0,shadeLimit))
 fig <- fig %>% layout(
     title = paste('Cases per 100k by State as of', Sys.Date(), '<br>(Hover for value)'),
     geo = set_map_details
@@ -461,7 +472,7 @@ fig_Today <- fig
 
 
 ### Plot together 
-________(fig_pick.date, fig_Today, nrows = 2, margin = .05)
+subplot(fig_pick.date, fig_Today, nrows = 2, margin = .05)
 
 ```
 
